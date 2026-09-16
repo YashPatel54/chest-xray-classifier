@@ -1,5 +1,9 @@
+# No upper-bound pins: Colab and fresh local environments ship with newer
+# Python/TensorFlow/numpy than this guide was originally written against,
+# and strict upper bounds cause pip to fail finding a matching wheel or to
+# build packages from source unnecessarily. Minimum versions only.
 tensorflow>=2.15
-numpy>=1.26,<2.0
+numpy>=1.26
 matplotlib>=3.8
 scikit-learn>=1.4
 pillow>=10.0
