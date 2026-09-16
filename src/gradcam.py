@@ -13,7 +13,7 @@ import argparse
 import os
 import random
 
-import matplotlib.cm as cm
+import matplotlib
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications.densenet import preprocess_input
@@ -47,7 +47,7 @@ def overlay_heatmap(original_img, heatmap, alpha=0.4):
     heatmap_resized = np.array(
         Image.fromarray(np.uint8(255 * heatmap)).resize(original_img.size)
     )
-    jet = cm.get_cmap("jet")
+    jet = matplotlib.colormaps["jet"]
     jet_colors = jet(np.arange(256))[:, :3]
     jet_heatmap = jet_colors[heatmap_resized]
     jet_heatmap = Image.fromarray(np.uint8(jet_heatmap * 255)).resize(original_img.size)
