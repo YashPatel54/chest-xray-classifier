@@ -23,13 +23,35 @@ from src import config
 
 
 def make_gradcam_heatmap(img_array, model, layer_name=config.GRADCAM_LAYER_NAME):
-    """img_array: preprocessed batch of shape (1, H, W, 3). Returns a 2D heatmap in [0,1]."""
-    grad_model = tf.keras.models.Model(
-        inputs=model.inputs, outputs=[model.get_layer(layer_name).output, model.output]
+    """
+    img_array: preprocessed batch of shape (1, H, W, 3). Returns a 2D heatmap in [0,1].
+
+    DenseNet121 is embedded as a single nested layer (named "densenet121")
+    inside the full model, rather than being flattened into it. Keras cannot
+    trace a Functional model whose output is an intermediate tensor *inside*
+    a nested sub-model -- that tensor isn't considered "connected" to the
+    outer model's inputs. So this is done in two stages instead:
+      1. Build a small model entirely within the backbone's own graph that
+         outputs both the target conv layer and the backbone's final output.
+      2. Manually replay the remaining head layers (GAP -> Dropout -> Dense ->
+         Dropout -> Dense) on top of that, inside the GradientTape, so
+         gradients still flow from the prediction back to the target layer.
+    """
+    base_model = model.get_layer("densenet121")
+    base_grad_model = tf.keras.models.Model(
+        inputs=base_model.input,
+        outputs=[base_model.get_layer(layer_name).output, base_model.output],
     )
 
+    backbone_index = model.layers.index(base_model)
+    head_layers = model.layers[backbone_index + 1:]
+
     with tf.GradientTape() as tape:
-        conv_output, predictions = grad_model(img_array)
+        conv_output, backbone_output = base_grad_model(img_array)
+        h = backbone_output
+        for layer in head_layers:
+            h = layer(h, training=False)
+        predictions = h
         class_score = predictions[:, 0]  # sigmoid output, single unit
 
     grads = tape.gradient(class_score, conv_output)
